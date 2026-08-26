@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IITT Hub — Daily Campus Utilities</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<style>
+  :root{
+    --bg:#0F1220;
+    --surface:#171B2E;
+    --surface-2:#1F2440;
+    --border:#2A2F4A;
+    --text:#EDEFF7;
+    --text-muted:#9096B4;
+    --accent:#F2A93C;
+    --accent-soft:rgba(242,169,60,0.14);
+    --accent2:#5EC9BD;
+    --accent2-soft:rgba(94,201,189,0.14);
+    --danger:#E15B5B;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  ::selection{background:var(--accent-soft);color:var(--accent);}
+  h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+  #app{max-width:920px;margin:0 auto;padding:0 16px 96px;}
+
+  /* Topbar */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:22px 4px 14px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{
+    width:38px;height:38px;border-radius:11px;
+    background:linear-gradient(155deg,var(--accent),#c97f1f);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;color:#0F1220;font-size:15px;
+    flex-shrink:0;
+  }
+  .brand-text .t1{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16.5px;line-height:1.1;}
+  .brand-text .t2{font-size:11.5px;color:var(--text-muted);letter-spacing:.02em;}
+  .clockbox{text-align:right;}
+  .clockbox .time{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;}
+  .clockbox .date{font-size:11.5px;color:var(--text-muted);}
+
+  /* Tabs */
+  .tabs{
+    display:flex;gap:6px;overflow-x:auto;padding:4px 2px 18px;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab-btn{
+    background:transparent;border:1px solid var(--border);color:var(--text-muted);
+    padding:9px 15px;border-radius:999px;font-size:13.5px;font-weight:500;
+    white-space:nowrap;transition:all .15s ease;
+  }
+  .tab-btn:hover{color:var(--text);border-color:#3a4066;}
+  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:#171208;font-weight:600;}
+  .tab-btn.admin-btn{margin-left:auto;color:var(--text-muted);font-size:12px;}
+
+  /* Cards / generic */
+  .card{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:18px;margin-bottom:14px;
+  }
+  .section-title{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-weight:600;margin:0 0 12px;}
+  .muted{color:var(--text-muted);}
+  .empty{color:var(--text-muted);font-size:14px;padding:18px 4px;text-align:center;}
+
+  /* Live ribbon (signature element) */
+  .live-ribbon{
+    display:flex;align-items:center;gap:12px;
+    background:linear-gradient(120deg,var(--accent-soft),transparent 70%);
+    border:1px solid rgba(242,169,60,.35);
+    border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;
+  }
+  .live-dot{
+    width:10px;height:10px;border-radius:50%;background:var(--accent);flex-shrink:0;
+    box-shadow:0 0 0 0 rgba(242,169,60,.6);
+    animation:pulse 1.8s infinite;
+  }
+  @media (prefers-reduced-motion:reduce){.live-dot{animation:none;}}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(242,169,60,.55);}
+    70%{box-shadow:0 0 0 9px rgba(242,169,60,0);}
+    100%{box-shadow:0 0 0 0 rgba(242,169,60,0);}
+  }
+  .live-ribbon .lr-label{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);font-weight:700;}
+  .live-ribbon .lr-main{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px;margin-top:1px;}
+  .live-ribbon .lr-sub{font-size:12.5px;color:var(--text-muted);margin-top:2px;}
+
+  /* Home grid */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:520px){.grid{grid-template-columns:1fr;}}
+  .tile{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:border-color .15s;
+  }
+  .tile:hover{border-color:#3a4066;}
+  .tile .tile-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;margin-bottom:4px;}
+  .tile.a .tile-icon{background:var(--accent-soft);color:var(--accent);}
+  .tile.b .tile-icon{background:var(--accent2-soft);color:var(--accent2);}
+  .tile .tile-title{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14.5px;}
+  .tile .tile-body{font-size:13px;color:var(--text-muted);line-height:1.45;}
+
+  /* Meal grid */
+  .meal-row{display:grid;grid-template-columns:120px 1fr;gap:14px;padding:13px 0;border-bottom:1px solid var(--border);}
+  .meal-row:last-child{border-bottom:none;}
+  .meal-row.active-meal{background:var(--accent-soft);margin:0 -18px;padding:13px 18px;border-radius:10px;border-bottom:none;}
+  .meal-name{font-weight:600;font-size:13.5px;}
+  .meal-time{font-size:11.5px;color:var(--text-muted);}
+  .meal-items{font-size:13.5px;line-height:1.55;color:#D6D9EB;}
+  .day-pills{display:flex;gap:6px;overflow-x:auto;padding-bottom:14px;scrollbar-width:none;}
+  .day-pills::-webkit-scrollbar{display:none;}
+  .day-pill{padding:7px 13px;border-radius:999px;border:1px solid var(--border);font-size:12.5px;color:var(--text-muted);white-space:nowrap;}
+  .day-pill.today{border-color:var(--accent);color:var(--accent);font-weight:600;}
+  .day-pill.selected{background:var(--surface-2);color:var(--text);}
+
+  /* List rows (transport/events/notices/contacts) */
+  .trip-block{padding:16px 0;border-bottom:1px solid var(--border);}
+  .trip-block:last-child{border-bottom:none;}
+  .trip-label{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:600;margin-bottom:12px;}
+  .trip-timeline{display:flex;align-items:flex-start;overflow-x:auto;padding-bottom:4px;}
+  .trip-stop{display:flex;flex-direction:column;align-items:center;min-width:78px;text-align:center;flex-shrink:0;}
+  .ts-dot{width:11px;height:11px;border-radius:50%;background:var(--surface-2);border:2px solid var(--border);margin-bottom:8px;}
+  .trip-stop.next .ts-dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);}
+  .trip-stop.passed .ts-dot{background:var(--border);border-color:var(--border);}
+  .ts-label{font-size:11.5px;font-weight:600;line-height:1.25;max-width:82px;}
+  .trip-stop.next .ts-label{color:var(--accent);}
+  .trip-stop.passed .ts-label{color:var(--text-muted);}
+  .ts-time{font-family:'Space Grotesk',sans-serif;font-size:12.5px;margin-top:3px;color:var(--text-muted);}
+  .trip-stop.next .ts-time{color:var(--text);font-weight:600;}
+  .ts-connector{flex:1;height:2px;background:var(--border);margin-top:6px;min-width:20px;}
+  .list-row{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);align-items:flex-start;}
+  .list-row:last-child{border-bottom:none;}
+  .list-badge{
+    min-width:64px;text-align:center;background:var(--surface-2);border-radius:10px;padding:7px 6px;
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;flex-shrink:0;
+  }
+  .list-main .lm-title{font-weight:600;font-size:14.5px;margin-bottom:2px;}
+  .list-main .lm-sub{font-size:12.5px;color:var(--text-muted);}
+  .tag{display:inline-block;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:6px;background:var(--accent2-soft);color:var(--accent2);margin-bottom:5px;}
+
+  /* Forms (admin) */
+  .lock-screen{max-width:340px;margin:60px auto;text-align:center;}
+  .lock-screen input{
+    width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text);font-size:14px;margin:14px 0;
+  }
+  .btn{
+    background:var(--accent);color:#171208;border:none;padding:11px 18px;border-radius:10px;
+    font-weight:600;font-size:13.5px;
+  }
+  .btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text);}
+  .btn.danger{background:transparent;border:1px solid rgba(225,91,91,.4);color:var(--danger);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .admin-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;color:var(--text-muted);margin-bottom:5px;font-weight:500;}
+  .field input,.field textarea,.field select{
+    width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text);font-size:13.5px;font-family:inherit;
+  }
+  .field textarea{min-height:64px;resize:vertical;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  @media (max-width:520px){.row2,.row3{grid-template-columns:1fr;}}
+  .entry-card{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--surface-2);}
+  .entry-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .icon-btn{background:transparent;border:none;color:var(--text-muted);font-size:16px;padding:2px 6px;}
+  .icon-btn:hover{color:var(--danger);}
+
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--accent);color:#171208;padding:10px 20px;border-radius:999px;
+    font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;
+    z-index:50;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  .loading{text-align:center;padding:60px 0;color:var(--text-muted);font-size:14px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">IT</div>
+      <div class="brand-text">
+        <div class="t1">IITT Hub</div>
+        <div class="t2">IIT Tirupati · Student Utilities</div>
+      </div>
+    </div>
+    <div class="clockbox">
+      <div class="time" id="clockTime">--:--</div>
+      <div class="date" id="clockDate">-</div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+  <div id="content"><div class="loading">Loading today's info…</div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------------------------------------------------
+   DATA MODEL
+--------------------------------------------------------- */
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+const MEAL_WINDOWS = [
+  { key:'breakfast', label:'Breakfast', start:[7,0], end:[9,30] },
+  { key:'lunch', label:'Lunch', start:[12,0], end:[14,0] },
+  { key:'tea', label:'Evening Tea/Coffee', start:[16,30], end:[18,0] },
+  { key:'dinner', label:'Dinner', start:[19,30], end:[21,30] },
+];
+
+function defaultMessMenu(){
+  const blank = { breakfast:'', lunch:'', tea:'', dinner:'' };
+  const m = {};
+  DAYS.forEach(d => m[d] = { ...blank });
+  return m;
+}
+
+const STOP_LABELS = ['Kedar', 'LHC (towards Malhar)', 'Malhar', 'LHC (towards Kedar)'];
+
+function blankTrip(){ return { stops:['', '', '', ''] }; }
+
+const DEFAULTS = {
+  mess: defaultMessMenu(),
+  transport: [
+    { stops:['08:00','08:08','08:18','08:28'] },
+    { stops:['13:00','13:08','13:18','13:28'] },
+    { stops:['19:00','19:08','19:18','19:28'] },
+  ],
+  events: [],
+  notices: [],
+  contacts: [
+    { name:'Chief Warden', role:'Hostel Administration', phone:'+91 00000 00000' },
+    { name:'Campus Security', role:'24x7 Helpline', phone:'+91 00000 00001' },
+    { name:'Medical Centre', role:'Health Centre', phone:'+91 00000 00002' },
+  ],
+};
+
+let state = { mess:null, transport:null, events:null, notices:null, contacts:null };
+let activeTab = 'home';
+let isAdmin = false;
+let authReady = false;
+
+auth.onAuthStateChanged(user => {
+  isAdmin = !!user;
+  authReady = true;
+  if(activeTab === 'admin') { const c = document.getElementById('content'); if(c) { c.innerHTML = renderAdmin(); attachTabHandlers(); } }
+});
+
+/* ---------------------------------------------------------
+   FIREBASE SETUP
+   ------------------------------------------------------------
+   1. Go to https://console.firebase.google.com → Add project (free).
+   2. Build → Firestore Database → Create database → start in test mode
+      (the rules below tighten this up).
+   3. Build → Authentication → Get started → Sign-in method tab →
+      enable "Email/Password".
+   4. Authentication → Users tab → Add user → enter YOUR email + a
+      password. This is the login you'll use for the Admin tab —
+      there is no signup page on the site, so only accounts you add
+      here can ever log in. Add one user per person who should have
+      admin access.
+   5. Project settings (gear icon) → General → "Your apps" → Web app (</>)
+      → register app → copy the firebaseConfig object → paste its
+      values below, replacing the placeholders.
+   6. Firestore → Rules tab, replace the default rules with:
+
+        rules_version = '2';
+        service cloud.firestore {
+          match /databases/{database}/documents {
+            match /iitt-hub/{docId} {
+              allow read: if true;
+              allow write: if request.auth != null;
+            }
+          }
+        }
+
+      This means anyone can view the site's data, but only someone
+      signed in with an account you created in step 4 can write to it.
+--------------------------------------------------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyDEq9yM0qZRfLHTG205ALsuyIjYJQ4N82E",
+  authDomain: "iitt-utilities.firebaseapp.com",
+  projectId: "iitt-utilities",
+  storageBucket: "iitt-utilities.firebasestorage.app",
+  messagingSenderId: "896343389381",
+  appId: "1:896343389381:web:7a3f01d6e003fb018cecac",
+  measurementId: "G-7Z743WBP8D"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const COLLECTION = 'iitt-hub';
+
+/* ---------------------------------------------------------
+   STORAGE HELPERS (Firestore-backed, shared by everyone)
+--------------------------------------------------------- */
+async function loadKey(key, fallback){
+  try{
+    const doc = await db.collection(COLLECTION).doc(key).get();
+    if(doc.exists && doc.data() && doc.data().value) return JSON.parse(doc.data().value);
+    return fallback;
+  }catch(e){
+    console.error('Load error', key, e);
+    return fallback;
+  }
+}
+async function saveKey(key, value){
+  try{
+    await db.collection(COLLECTION).doc(key).set({ value: JSON.stringify(value), updatedAt: Date.now() });
+    return true;
+  }catch(e){
+    console.error('Storage error', key, e);
+    return false;
+  }
+}
+async function loadAll(){
+  const [mess, transport, events, notices, contacts] = await Promise.all([
+    loadKey('mess-menu', DEFAULTS.mess),
+    loadKey('transport-schedule', DEFAULTS.transport),
+    loadKey('events-calendar', DEFAULTS.events),
+    loadKey('notices-board', DEFAULTS.notices),
+    loadKey('contacts-list', DEFAULTS.contacts),
+  ]);
+  state = { mess, transport, events, notices, contacts };
+}
+
+/* ---------------------------------------------------------
+   TIME HELPERS
+--------------------------------------------------------- */
+function now(){ return new Date(); }
+function todayName(){ return DAYS[now().getDay()]; }
+function pad(n){ return n.toString().padStart(2,'0'); }
+function fmtTime(h,m){
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  let hh = h % 12; if(hh === 0) hh = 12;
+  return `${hh}:${pad(m)} ${ampm}`;
+}
+function minutesNow(){ const d = now(); return d.getHours()*60 + d.getMinutes(); }
+function toMinutes([h,m]){ return h*60+m; }
+
+function currentMeal(){
+  const mn = minutesNow();
+  return MEAL_WINDOWS.find(w => mn >= toMinutes(w.start) && mn <= toMinutes(w.end)) || null;
+}
+function nextMeal(){
+  const mn = minutesNow();
+  const upcoming = MEAL_WINDOWS.filter(w => toMinutes(w.start) > mn).sort((a,b)=>toMinutes(a.start)-toMinutes(b.start));
+  return upcoming[0] || MEAL_WINDOWS[0];
+}
+function parseTimeStr(t){
+  // "HH:MM" 24hr -> minutes
+  const [h,m] = t.split(':').map(Number);
+  return h*60 + (m||0);
+}
+function allStopEntries(){
+  // Flatten every trip's stops into {label, time, tripIndex, stopIndex}
+  const entries = [];
+  (state.transport||[]).forEach((trip, ti) => {
+    (trip.stops||[]).forEach((time, si) => {
+      if(time) entries.push({ label: STOP_LABELS[si], time, tripIndex: ti, stopIndex: si });
+    });
+  });
+  return entries.sort((a,b)=>parseTimeStr(a.time)-parseTimeStr(b.time));
+}
+function nextTransport(){
+  const mn = minutesNow();
+  const list = allStopEntries();
+  if(!list.length) return null;
+  return list.find(t => parseTimeStr(t.time) >= mn) || list[0];
+}
+function todayEvents(){
+  const todayStr = now().toISOString().slice(0,10);
+  return (state.events||[]).filter(e => e.date === todayStr).sort((a,b)=> (a.time||'').localeCompare(b.time||''));
+}
+function upcomingEvents(){
+  const todayStr = now().toISOString().slice(0,10);
+  return (state.events||[]).slice().sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time))
+    .filter(e => e.date >= todayStr);
+}
+function latestNotice(){
+  const list = (state.notices||[]).slice().sort((a,b)=> b.date.localeCompare(a.date));
+  return list[0] || null;
+}
+function fmtDateHuman(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+}
+
+/* ---------------------------------------------------------
+   RENDER: SHELL
+--------------------------------------------------------- */
+const TABS = [
+  { key:'home', label:'Home' },
+  { key:'mess', label:'Mess Menu' },
+  { key:'transport', label:'Transport' },
+  { key:'events', label:'Events' },
+  { key:'notices', label:'Notices' },
+  { key:'contacts', label:'Contacts' },
+];
+
+function renderTabs(){
+  const el = document.getElementById('tabs');
+  el.innerHTML = TABS.map(t => `<button class="tab-btn ${activeTab===t.key?'active':''}" data-tab="${t.key}">${t.label}</button>`).join('')
+    + `<button class="tab-btn admin-btn ${activeTab==='admin'?'active':''}" data-tab="admin">⚙ Admin</button>`;
+  el.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ activeTab = btn.dataset.tab; renderAll(); });
+  });
+}
+
+function updateClock(){
+  const d = now();
+  document.getElementById('clockTime').textContent = d.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+  document.getElementById('clockDate').textContent = d.toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long' });
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 1800);
+}
+
+function renderAll(){
+  renderTabs();
+  const c = document.getElementById('content');
+  if(activeTab==='home') c.innerHTML = renderHome();
+  else if(activeTab==='mess') c.innerHTML = renderMess();
+  else if(activeTab==='transport') c.innerHTML = renderTransport();
+  else if(activeTab==='events') c.innerHTML = renderEvents();
+  else if(activeTab==='notices') c.innerHTML = renderNotices();
+  else if(activeTab==='contacts') c.innerHTML = renderContacts();
+  else if(activeTab==='admin') c.innerHTML = renderAdmin();
+  attachTabHandlers();
+}
+
+/* ---------------------------------------------------------
+   RENDER: HOME
+--------------------------------------------------------- */
+function renderHome(){
+  const cm = currentMeal();
+  const nm = nextMeal();
+  const menuToday = state.mess[todayName()] || {};
+  const nt = nextTransport();
+  const evs = todayEvents();
+  const notice = latestNotice();
+
+  const ribbon = cm
+    ? `<div class="live-ribbon">
+         <div class="live-dot"></div>
+         <div>
+           <div class="lr-label">Happening now</div>
+           <div class="lr-main">${cm.label} is being served</div>
+           <div class="lr-sub">${menuToday[cm.key] ? menuToday[cm.key] : 'Menu not updated yet'} · till ${fmtTime(...cm.end)}</div>
+         </div>
+       </div>`
+    : `<div class="live-ribbon">
+         <div class="live-dot"></div>
+         <div>
+           <div class="lr-label">Up next</div>
+           <div class="lr-main">${nm.label} starts at ${fmtTime(...nm.start)}</div>
+           <div class="lr-sub">${menuToday[nm.key] ? menuToday[nm.key] : 'Menu not updated yet'}</div>
+         </div>
+       </div>`;
+
+  return `
+    ${ribbon}
+    <div class="grid">
+      <div class="tile a" data-goto="mess">
+        <div class="tile-icon">🍽</div>
+        <div class="tile-title">Today's Mess Menu</div>
+        <div class="tile-body">${['breakfast','lunch','tea','dinner'].map(k=>{
+          const w = MEAL_WINDOWS.find(x=>x.key===k);
+          return `${w.label}: ${menuToday[k] ? menuToday[k] : '—'}`;
+        }).join('<br>')}</div>
+      </div>
+      <div class="tile b" data-goto="transport">
+        <div class="tile-icon">🚌</div>
+        <div class="tile-title">Next Transport</div>
+        <div class="tile-body">${nt ? `${nt.label}<br>${nt.time}` : 'No schedule uploaded yet'}</div>
+      </div>
+      <div class="tile a" data-goto="events">
+        <div class="tile-icon">📅</div>
+        <div class="tile-title">Today's Events</div>
+        <div class="tile-body">${evs.length ? evs.map(e=>`${e.time||''} ${e.title}`).join('<br>') : 'No events scheduled today'}</div>
+      </div>
+      <div class="tile b" data-goto="notices">
+        <div class="tile-icon">📌</div>
+        <div class="tile-title">Latest Notice</div>
+        <div class="tile-body">${notice ? `<strong style="color:var(--text)">${notice.title}</strong><br>${fmtDateHuman(notice.date)}` : 'No notices right now'}</div>
+      </div>
+    </div>
+  `;
+}
+
+function attachTabHandlers(){
+  document.querySelectorAll('[data-goto]').forEach(el=>{
+    el.addEventListener('click', ()=>{ activeTab = el.dataset.goto; renderAll(); });
+  });
+}
+
+/* ---------------------------------------------------------
+   RENDER: MESS
+--------------------------------------------------------- */
+let selectedDay = todayName();
+function renderMess(){
+  const menu = state.mess[selectedDay] || {};
+  const isToday = selectedDay === todayName();
+  const cm = currentMeal();
+
+  return `
+    <div class="card">
+      <div class="section-title">Weekly Mess Menu</div>
+      <div class="day-pills">
+        ${DAYS.map(d => `<button class="day-pill ${d===todayName()?'today':''} ${d===selectedDay?'selected':''}" data-day="${d}">${d.slice(0,3)}${d===todayName()?' · Today':''}</button>`).join('')}
+      </div>
+      ${MEAL_WINDOWS.map(w=>{
+        const active = isToday && cm && cm.key===w.key;
+        return `
+        <div class="meal-row ${active?'active-meal':''}">
+          <div>
+            <div class="meal-name">${w.label}</div>
+            <div class="meal-time">${fmtTime(...w.start)} – ${fmtTime(...w.end)}</div>
+          </div>
+          <div class="meal-items">${menu[w.key] ? menu[w.key].replace(/\\n/g,'<br>') : '<span class="muted">Not updated yet</span>'}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+/* ---------------------------------------------------------
+   RENDER: TRANSPORT
+--------------------------------------------------------- */
+function renderTransport(){
+  const trips = state.transport || [];
+  const mn = minutesNow();
+  const hasAny = trips.some(t => (t.stops||[]).some(s=>s));
+  const nextEntry = nextTransport();
+  return `
+    <div class="card">
+      <div class="section-title">Intra-Campus Route · Kedar → LHC → Malhar → LHC</div>
+      ${hasAny ? trips.map((trip, ti)=>{
+        const anyTime = (trip.stops||[]).some(s=>s);
+        if(!anyTime) return '';
+        return `
+        <div class="trip-block">
+          <div class="trip-label">Run ${ti+1}</div>
+          <div class="trip-timeline">
+            ${STOP_LABELS.map((label, si)=>{
+              const time = trip.stops[si];
+              const passed = time && parseTimeStr(time) < mn;
+              const isNext = !!time && !!nextEntry && nextEntry.tripIndex===ti && nextEntry.stopIndex===si;
+              return `
+              <div class="trip-stop ${passed?'passed':''} ${isNext?'next':''}">
+                <div class="ts-dot"></div>
+                <div class="ts-label">${label}</div>
+                <div class="ts-time">${time || '—'}</div>
+              </div>`;
+            }).join('<div class="ts-connector"></div>')}
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty">No transport schedule uploaded yet.</div>'}
+    </div>
+  `;
+}
+
+/* ---------------------------------------------------------
+   RENDER: EVENTS
+--------------------------------------------------------- */
+function renderEvents(){
+  const list = upcomingEvents();
+  return `
+    <div class="card">
+      <div class="section-title">Upcoming Events</div>
+      ${list.length ? list.map(e=>{
+        const isToday = e.date === now().toISOString().slice(0,10);
+        return `
+        <div class="list-row">
+          <div class="list-badge">${fmtDateHuman(e.date).split(' ').slice(0,2).join(' ')}</div>
+          <div class="list-main">
+            ${isToday ? '<span class="tag">Today</span><br>' : ''}
+            <div class="lm-title">${e.title}</div>
+            <div class="lm-sub">${e.time ? e.time+' · ' : ''}${e.venue||''}</div>
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty">No upcoming events scheduled.</div>'}
+    </div>
+  `;
+}
+
+/* ---------------------------------------------------------
+   RENDER: NOTICES
+--------------------------------------------------------- */
+function renderNotices(){
+  const list = (state.notices||[]).slice().sort((a,b)=> b.date.localeCompare(a.date));
+  return `
+    <div class="card">
+      <div class="section-title">Notices & Announcements</div>
+      ${list.length ? list.map(n=>`
+        <div class="list-row">
+          <div class="list-badge">${fmtDateHuman(n.date).split(' ').slice(0,2).join(' ')}</div>
+          <div class="list-main">
+            <div class="lm-title">${n.title}</div>
+            <div class="lm-sub">${(n.body||'').replace(/\\n/g,'<br>')}</div>
+          </div>
+        </div>`).join('') : '<div class="empty">No notices right now.</div>'}
+    </div>
+  `;
+}
+
+/* ---------------------------------------------------------
+   RENDER: CONTACTS
+--------------------------------------------------------- */
+function renderContacts(){
+  const list = state.contacts || [];
+  return `
+    <div class="card">
+      <div class="section-title">Important Contacts</div>
+      ${list.length ? list.map(c=>`
+        <div class="list-row">
+          <div class="list-main" style="flex:1">
+            <div class="lm-title">${c.name}</div>
+            <div class="lm-sub">${c.role}</div>
+          </div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;white-space:nowrap;">${c.phone}</div>
+        </div>`).join('') : '<div class="empty">No contacts added yet.</div>'}
+    </div>
+  `;
+}
+
+/* ---------------------------------------------------------
+   RENDER: ADMIN
+--------------------------------------------------------- */
+let adminSection = 'mess';
+function renderAdmin(){
+  if(!isAdmin){
+    return `
+      <div class="lock-screen">
+        <div class="section-title" style="text-align:center">Admin Access</div>
+        <p class="muted" style="font-size:13.5px">Sign in with your admin account to update mess menu, transport, events, notices or contacts.</p>
+        <input type="email" id="adminEmail" placeholder="Email" autocomplete="username" />
+        <input type="password" id="adminPass" placeholder="Password" autocomplete="current-password" />
+        <button class="btn" id="adminLoginBtn" style="width:100%">Sign in</button>
+        <p id="adminErr" style="color:var(--danger);font-size:12.5px;height:16px;margin-top:8px;"></p>
+      </div>
+    `;
+  }
+
+  const sections = [
+    {key:'mess', label:'Mess Menu'},
+    {key:'transport', label:'Transport'},
+    {key:'events', label:'Events'},
+    {key:'notices', label:'Notices'},
+    {key:'contacts', label:'Contacts'},
+  ];
+
+  return `
+    <div class="admin-tabs">
+      ${sections.map(s=>`<button class="tab-btn ${adminSection===s.key?'active':''}" data-admin="${s.key}">${s.label}</button>`).join('')}
+      <span class="muted" style="margin-left:auto;font-size:12px;align-self:center;">${auth.currentUser ? auth.currentUser.email : ''}</span>
+      <button class="tab-btn secondary" id="adminLogout" style="border:1px solid var(--border);background:transparent;">Log out</button>
+    </div>
+    <div id="adminContent">${renderAdminSection()}</div>
+  `;
+}
+
+function renderAdminSection(){
+  if(adminSection==='mess') return renderAdminMess();
+  if(adminSection==='transport') return renderAdminTransport();
+  if(adminSection==='events') return renderAdminEvents();
+  if(adminSection==='notices') return renderAdminNotices();
+  if(adminSection==='contacts') return renderAdminContacts();
+}
+
+function renderAdminMess(){
+  return `
+    <div class="card">
+      <div class="section-title">Edit Mess Menu — select a day</div>
+      <div class="day-pills">
+        ${DAYS.map(d => `<button class="day-pill ${d===selectedDay?'selected':''} ${d===todayName()?'today':''}" data-adminday="${d}">${d.slice(0,3)}</button>`).join('')}
+      </div>
+      ${MEAL_WINDOWS.map(w=>`
+        <div class="field">
+          <label>${w.label} (${fmtTime(...w.start)}–${fmtTime(...w.end)})</label>
+          <textarea data-meal="${w.key}">${(state.mess[selectedDay]||{})[w.key]||''}</textarea>
+        </div>
+      `).join('')}
+      <button class="btn" id="saveMess">Save ${selectedDay}'s menu</button>
+    </div>
+  `;
+}
+
+function renderAdminTransport(){
+  const list = state.transport || [];
+  return `
+    <div class="card">
+      <div class="section-title">Intra-Campus Route · Kedar → LHC → Malhar → LHC</div>
+      <p class="muted" style="font-size:12.5px;margin-top:-6px;">Each "run" is one full loop. Enter the time the bus reaches each stop — leave blank if a stop doesn't apply to that run.</p>
+      ${list.map((trip,i)=>`
+        <div class="entry-card">
+          <div class="entry-top">
+            <strong style="font-size:12.5px;color:var(--text-muted)">Run ${i+1}</strong>
+            <button class="icon-btn" data-remove-transport="${i}">✕ Remove</button>
+          </div>
+          <div class="row2">
+            ${STOP_LABELS.map((label, si)=>`
+              <div class="field"><label>${label}</label><input type="time" data-tstop="${si}" data-i="${i}" value="${trip.stops[si]||''}"></div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('') || '<div class="empty">No runs yet — add one below.</div>'}
+      <button class="btn secondary" id="addTransport">+ Add run</button>
+      <div style="height:12px"></div>
+      <button class="btn" id="saveTransport">Save transport schedule</button>
+    </div>
+  `;
+}
+
+function renderAdminEvents(){
+  const list = state.events || [];
+  return `
+    <div class="card">
+      <div class="section-title">Events Calendar</div>
+      ${list.map((e,i)=>`
+        <div class="entry-card">
+          <div class="entry-top">
+            <strong style="font-size:12.5px;color:var(--text-muted)">Entry ${i+1}</strong>
+            <button class="icon-btn" data-remove-event="${i}">✕ Remove</button>
+          </div>
+          <div class="field"><label>Title</label><input data-e="title" data-i="${i}" value="${e.title||''}"></div>
+          <div class="row3">
+            <div class="field"><label>Date</label><input type="date" data-e="date" data-i="${i}" value="${e.date||''}"></div>
+            <div class="field"><label>Time</label><input type="time" data-e="time" data-i="${i}" value="${e.time||''}"></div>
+            <div class="field"><label>Venue</label><input data-e="venue" data-i="${i}" value="${e.venue||''}"></div>
+          </div>
+        </div>
+      `).join('') || '<div class="empty">No events yet — add one below.</div>'}
+      <button class="btn secondary" id="addEvent">+ Add event</button>
+      <div style="height:12px"></div>
+      <button class="btn" id="saveEvents">Save events</button>
+    </div>
+  `;
+}
+
+function renderAdminNotices(){
+  const list = state.notices || [];
+  return `
+    <div class="card">
+      <div class="section-title">Notices & Announcements</div>
+      ${list.map((n,i)=>`
+        <div class="entry-card">
+          <div class="entry-top">
+            <strong style="font-size:12.5px;color:var(--text-muted)">Entry ${i+1}</strong>
+            <button class="icon-btn" data-remove-notice="${i}">✕ Remove</button>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Title</label><input data-n="title" data-i="${i}" value="${n.title||''}"></div>
+            <div class="field"><label>Date</label><input type="date" data-n="date" data-i="${i}" value="${n.date||''}"></div>
+          </div>
+          <div class="field"><label>Details</label><textarea data-n="body" data-i="${i}">${n.body||''}</textarea></div>
+        </div>
+      `).join('') || '<div class="empty">No notices yet — add one below.</div>'}
+      <button class="btn secondary" id="addNotice">+ Add notice</button>
+      <div style="height:12px"></div>
+      <button class="btn" id="saveNotices">Save notices</button>
+    </div>
+  `;
+}
+
+function renderAdminContacts(){
+  const list = state.contacts || [];
+  return `
+    <div class="card">
+      <div class="section-title">Important Contacts</div>
+      ${list.map((c,i)=>`
+        <div class="entry-card">
+          <div class="entry-top">
+            <strong style="font-size:12.5px;color:var(--text-muted)">Entry ${i+1}</strong>
+            <button class="icon-btn" data-remove-contact="${i}">✕ Remove</button>
+          </div>
+          <div class="row3">
+            <div class="field"><label>Name</label><input data-c="name" data-i="${i}" value="${c.name||''}"></div>
+            <div class="field"><label>Role</label><input data-c="role" data-i="${i}" value="${c.role||''}"></div>
+            <div class="field"><label>Phone</label><input data-c="phone" data-i="${i}" value="${c.phone||''}"></div>
+          </div>
+        </div>
+      `).join('') || '<div class="empty">No contacts yet — add one below.</div>'}
+      <button class="btn secondary" id="addContact">+ Add contact</button>
+      <div style="height:12px"></div>
+      <button class="btn" id="saveContacts">Save contacts</button>
+    </div>
+  `;
+}
+
+/* ---------------------------------------------------------
+   EVENT WIRING (delegated, re-attached on each render)
+--------------------------------------------------------- */
+function attachTabHandlers(){
+  document.querySelectorAll('[data-goto]').forEach(el=>{
+    el.addEventListener('click', ()=>{ activeTab = el.dataset.goto; renderAll(); });
+  });
+
+  // Mess day pills (view)
+  document.querySelectorAll('[data-day]').forEach(el=>{
+    el.addEventListener('click', ()=>{ selectedDay = el.dataset.day; document.getElementById('content').innerHTML = renderMess(); attachTabHandlers(); });
+  });
+
+  // Admin login
+  const loginBtn = document.getElementById('adminLoginBtn');
+  if(loginBtn){
+    loginBtn.addEventListener('click', async ()=>{
+      const email = document.getElementById('adminEmail').value.trim();
+      const pass = document.getElementById('adminPass').value;
+      const errEl = document.getElementById('adminErr');
+      errEl.textContent = '';
+      loginBtn.disabled = true; loginBtn.textContent = 'Signing in…';
+      try{
+        await auth.signInWithEmailAndPassword(email, pass);
+        // onAuthStateChanged will flip isAdmin and re-render
+      }catch(e){
+        errEl.textContent = 'Could not sign in — check your email and password.';
+        loginBtn.disabled = false; loginBtn.textContent = 'Sign in';
+      }
+    });
+    document.getElementById('adminPass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') loginBtn.click(); });
+  }
+
+  const logoutBtn = document.getElementById('adminLogout');
+  if(logoutBtn) logoutBtn.addEventListener('click', ()=>{ auth.signOut(); });
+
+  // Admin section switch
+  document.querySelectorAll('[data-admin]').forEach(el=>{
+    el.addEventListener('click', ()=>{ adminSection = el.dataset.admin; document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers(); });
+  });
+
+  // Admin mess day pills
+  document.querySelectorAll('[data-adminday]').forEach(el=>{
+    el.addEventListener('click', ()=>{ selectedDay = el.dataset.adminday; document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers(); });
+  });
+
+  const saveMessBtn = document.getElementById('saveMess');
+  if(saveMessBtn) saveMessBtn.addEventListener('click', async ()=>{
+    const textareas = document.querySelectorAll('[data-meal]');
+    const dayMenu = { ...(state.mess[selectedDay]||{}) };
+    textareas.forEach(t => dayMenu[t.dataset.meal] = t.value);
+    state.mess[selectedDay] = dayMenu;
+    const ok = await saveKey('mess-menu', state.mess);
+    showToast(ok ? `${selectedDay}'s menu saved` : 'Save failed, try again');
+  });
+
+  // Transport
+  document.querySelectorAll('[data-tstop]').forEach(el=>{
+    el.addEventListener('input', ()=>{ state.transport[+el.dataset.i].stops[+el.dataset.tstop] = el.value; });
+  });
+  const addTransportBtn = document.getElementById('addTransport');
+  if(addTransportBtn) addTransportBtn.addEventListener('click', ()=>{
+    state.transport.push(blankTrip());
+    document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers();
+  });
+  document.querySelectorAll('[data-remove-transport]').forEach(el=>{
+    el.addEventListener('click', ()=>{ state.transport.splice(+el.dataset.removeTransport,1); document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers(); });
+  });
+  const saveTransportBtn = document.getElementById('saveTransport');
+  if(saveTransportBtn) saveTransportBtn.addEventListener('click', async ()=>{
+    const ok = await saveKey('transport-schedule', state.transport);
+    showToast(ok ? 'Transport schedule saved' : 'Save failed, try again');
+  });
+
+  // Events
+  document.querySelectorAll('[data-e]').forEach(el=>{
+    el.addEventListener('input', ()=>{ state.events[+el.dataset.i][el.dataset.e] = el.value; });
+  });
+  const addEventBtn = document.getElementById('addEvent');
+  if(addEventBtn) addEventBtn.addEventListener('click', ()=>{
+    state.events.push({ title:'', date: now().toISOString().slice(0,10), time:'', venue:'' });
+    document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers();
+  });
+  document.querySelectorAll('[data-remove-event]').forEach(el=>{
+    el.addEventListener('click', ()=>{ state.events.splice(+el.dataset.removeEvent,1); document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers(); });
+  });
+  const saveEventsBtn = document.getElementById('saveEvents');
+  if(saveEventsBtn) saveEventsBtn.addEventListener('click', async ()=>{
+    const ok = await saveKey('events-calendar', state.events);
+    showToast(ok ? 'Events saved' : 'Save failed, try again');
+  });
+
+  // Notices
+  document.querySelectorAll('[data-n]').forEach(el=>{
+    el.addEventListener('input', ()=>{ state.notices[+el.dataset.i][el.dataset.n] = el.value; });
+  });
+  const addNoticeBtn = document.getElementById('addNotice');
+  if(addNoticeBtn) addNoticeBtn.addEventListener('click', ()=>{
+    state.notices.push({ title:'', date: now().toISOString().slice(0,10), body:'' });
+    document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers();
+  });
+  document.querySelectorAll('[data-remove-notice]').forEach(el=>{
+    el.addEventListener('click', ()=>{ state.notices.splice(+el.dataset.removeNotice,1); document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers(); });
+  });
+  const saveNoticesBtn = document.getElementById('saveNotices');
+  if(saveNoticesBtn) saveNoticesBtn.addEventListener('click', async ()=>{
+    const ok = await saveKey('notices-board', state.notices);
+    showToast(ok ? 'Notices saved' : 'Save failed, try again');
+  });
+
+  // Contacts
+  document.querySelectorAll('[data-c]').forEach(el=>{
+    el.addEventListener('input', ()=>{ state.contacts[+el.dataset.i][el.dataset.c] = el.value; });
+  });
+  const addContactBtn = document.getElementById('addContact');
+  if(addContactBtn) addContactBtn.addEventListener('click', ()=>{
+    state.contacts.push({ name:'', role:'', phone:'' });
+    document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers();
+  });
+  document.querySelectorAll('[data-remove-contact]').forEach(el=>{
+    el.addEventListener('click', ()=>{ state.contacts.splice(+el.dataset.removeContact,1); document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers(); });
+  });
+  const saveContactsBtn = document.getElementById('saveContacts');
+  if(saveContactsBtn) saveContactsBtn.addEventListener('click', async ()=>{
+    const ok = await saveKey('contacts-list', state.contacts);
+    showToast(ok ? 'Contacts saved' : 'Save failed, try again');
+  });
+}
+
+/* ---------------------------------------------------------
+   INIT
+--------------------------------------------------------- */
+async function init(){
+  updateClock();
+  setInterval(updateClock, 1000 * 15);
+  await loadAll();
+  renderAll();
+}
+init();
+</script>
+</body>
+</html>
