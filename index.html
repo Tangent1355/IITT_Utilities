@@ -263,12 +263,6 @@ let activeTab = 'home';
 let isAdmin = false;
 let authReady = false;
 
-auth.onAuthStateChanged(user => {
-  isAdmin = !!user;
-  authReady = true;
-  if(activeTab === 'admin') { const c = document.getElementById('content'); if(c) { c.innerHTML = renderAdmin(); attachTabHandlers(); } }
-});
-
 /* ---------------------------------------------------------
    FIREBASE SETUP
    ------------------------------------------------------------
@@ -313,6 +307,12 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 const COLLECTION = 'iitt-hub';
+
+auth.onAuthStateChanged(user => {
+  isAdmin = !!user;
+  authReady = true;
+  if(activeTab === 'admin') { const c = document.getElementById('content'); if(c) { c.innerHTML = renderAdmin(); attachTabHandlers(); } }
+});
 
 /* ---------------------------------------------------------
    STORAGE HELPERS (Firestore-backed, shared by everyone)
