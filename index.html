@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
 <style>
   :root{
     --bg:#0F1220;
@@ -233,22 +234,253 @@ const MEAL_WINDOWS = [
 
 function defaultMessMenu(){
   const blank = { breakfast:'', lunch:'', tea:'', dinner:'' };
-  const m = {};
-  DAYS.forEach(d => m[d] = { ...blank });
-  return m;
+  const week = {};
+  DAYS.forEach(d => week[d] = { ...blank });
+  return week;
 }
 
-const STOP_LABELS = ['Kedar', 'LHC (towards Malhar)', 'Malhar', 'LHC (towards Kedar)'];
+const TEA_LINE = 'Tea, Coffee, Milk';
 
-function blankTrip(){ return { stops:['', '', '', ''] }; }
+const MESS_WEEK_1 = {
+  Sunday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam\nCorn Dosa, Groundnut Chutney, Sambhar, Aloo Masala',
+    lunch: 'Rice, Veg Green Salad, Ghee, Pickle, Veg Raita, Egg/Banana - 1\n(Veg Biryani, Paneer Butter Masala) / (Chicken Dum Biryani, Shorba)',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Curd, Sugar, Papad\nBaby Corn Curry, Aloo 65\nGongura Dal, Mysore Rasam\nSewai Kheer',
+  },
+  Monday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Moong Daal, Banana / Egg - 1\nOnion Uttapam, Sambar',
+    lunch: 'Roti, Rice, Salad, Pickle, Curd, Sugar, Papad\nKadhi Pakoda, Pumpkin Fry\nDal Tadka, Drumstick Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Pickle, Curd, Sugar, Papad\nTaro Root Fry, Kaala Chana Curry\nToor Dal, Mysore Rasam\nSeasonal Fruit',
+  },
+  Tuesday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Moong Daal, Banana / Egg - 1\nPuri, Aloo Masala Curry',
+    lunch: 'Roti, Rice, Ghee, Veg Salad, Pickle, Boondi Raita, Masala Papad\nMethi Mutter Malai, Carrot Fry\nPalakura Pappu, Pumpkin Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Rice, Punjabi Paratha, Papad, Veg Mix Salad, Salt, Sugar, Curd, Pickle\nBisi Bele Bhath, Aloo Bhujiya\nMasoor Dal, Pepper Rasam\nIce Cream (2 scoops)',
+  },
+  Wednesday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Moong Daal, Banana / Egg - 1\nMethi Thepla, Tomato Chutney',
+    lunch: 'Roti, Rice, Ghee, Veg Salad, Pickle, Curd, Sugar, Papad\nRajma Curry, Aloo Capsicum Fry\nUrad Dal, Mix Veg Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Pickle, Butter Milk\nLemon Coriander Rasam\nKadhai Paneer / Chicken Kaali Mirch Curry',
+  },
+  Thursday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Moong Daal, Banana / Egg - 1\nIdly, Vada, Groundnut Chutney, Sambhar',
+    lunch: 'Roti, Rice, Ghee, Masala Papad, Veg Salad, Gongura Chutney, Curd, Sugar\nTomato Flat Bean Curry, Banana Fry\nDal Lahsuni, Carrot Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Pickle, Boondi Raita, Papad\nTamarind Rice, Veg Kurma\nLauki Chana Dal, Tomato Rasam',
+  },
+  Friday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Moong Daal, Banana / Egg - 1\nPoha, Onion, Sev Namkeen, Lemon (Matki Usal)',
+    lunch: 'Roti, Rice, Ghee, Papad, Veg Salad, Pickle, Curd, Sugar\nBrinjal Fry, Ragda Curry\nDaal Makhni, Onion Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Jeera Rice, Veg Salad, Roti, Pickle, Curd\nChole Bhature, Pindi Chole\nMoong Daal, Tamarind Rasam\nSeasonal Fruit',
+  },
+  Saturday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Moong Daal, Banana / Egg - 1\nAloo Paratha, Curd, Tomato Chutney',
+    lunch: 'Roti, Rice, Ghee, Masala Papad, Veg Salad, Pickle, Curd, Sugar\nAloo Tomato Curry, Cabbage Fry\nMasoor Dal, Bottle Gourd Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Pickle, Curd, Sugar\nNoodles, Aloo 65, Schezwan\nDal Fry, Jeera Pepper Rasam\nFruit Custard',
+  },
+};
+
+const MESS_WEEK_2 = {
+  Sunday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam\nCorn Dosa, Groundnut Chutney, Sambhar, Aloo Masala',
+    lunch: 'Rice, Veg Green Salad, Ghee, Pickle, Veg Raita, Banana/Egg - 1\n(Veg Biryani, Paneer Butter Masala) / (Chicken Dum Biryani, Shorba)',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Curd, Sugar, Papad\nBaby Corn Curry, Beetroot Fry\nGongura Dal, Mysore Rasam\nGulab Jamun - 2',
+  },
+  Monday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Lobia Daal, Banana / Egg - 1\nOnion Uttapam, Sambar',
+    lunch: 'Roti, Rice, Salad, Pickle, Curd, Sugar, Papad\nKadhi Pakoda, Meal Maker Fry\nDal Tadka, Drumstick Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Pickle, Curd, Sugar\nDondakaya Fry, Kaala Chana Curry\nToor Dal, Mysore Rasam\nSeasonal Fruit',
+  },
+  Tuesday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Moong Daal, Banana / Egg - 1\nPuri, Aloo Masala Curry',
+    lunch: 'Roti, Rice, Ghee, Veg Salad, Pickle, Boondi Raita, Papad\nMethi Mutter Malai, Lauki Channa Dry\nPalakura Pappu, Pumpkin Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Pickle, Curd, Sugar\nSoya Chunks Fry, Mix Veg Curry\nMasoor Dal, Pepper Rasam\nIce Cream (2 scoops)',
+  },
+  Wednesday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Lobia Daal, Banana / Egg - 1\nVermicelli Upma, Groundnut Chutney',
+    lunch: 'Roti, Rice, Ghee, Veg Salad, Pickle, Curd, Sugar, Papad\nRajma Curry, Aloo Capsicum Fry\nUrad Dal, Mix Veg Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Pickle, Butter Milk\nLemon Coriander Rasam\nKadhai Paneer / Chicken Kaali Mirch Curry',
+  },
+  Thursday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Moong Daal, Banana / Egg - 1\nRagi Idly, Vada, Groundnut Chutney, Sambhar',
+    lunch: 'Roti, Rice, Ghee, Papad, Veg Salad, Gongura Chutney, Curd, Sugar\nRagda Curry, Banana Fry\nDal Lahsuni, Carrot Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Pickle, Boondi Raita\nPulao, Veg Kurma\nLauki Chana Dal, Tomato Rasam',
+  },
+  Friday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Lobia Daal, Banana / Egg - 1\nDhokla, Green Chutney',
+    lunch: 'Roti, Rice, Ghee, Papad, Veg Salad, Pickle, Curd, Sugar\nBarbati Fry, Guttivankaya Curry\nDaal Makhni, Onion Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Jeera Rice, Veg Salad, Roti, Pickle, Curd\nPuri, Pindi Chole\nMoong Daal, Tamarind Rasam\nSeasonal Fruit',
+  },
+  Saturday: {
+    breakfast: 'Tea, Coffee, Milk\nBread, Butter, Jam, Peanuts, Chana, Moong Daal, Banana / Egg - 1\nAloo Paratha, Curd, Tomato Chutney',
+    lunch: 'Roti, Rice, Ghee, Papad, Veg Salad, Pickle, Curd, Sugar\nAloo Tomato Curry, Cabbage Fry\nMasoor Dal, Bottle Gourd Sambhar',
+    tea: TEA_LINE,
+    dinner: 'Roti, Rice, Veg Salad, Pickle, Curd, Sugar\nNoodles, Bhindi Fry, Schezwan\nDal Fry, Jeera Pepper Rasam\nFruit Custard',
+  },
+};
+
+const WEEK_LABELS = { week1: 'Week 1', week2: 'Week 2' };
+
+/* ---------------------------------------------------------
+   PDF MENU IMPORT (best-effort auto-fill, always reviewable)
+   ------------------------------------------------------------
+   Mess menu PDFs are tables, and table text extracted from a
+   PDF loses its column structure — this uses pattern-matching
+   (recurring phrases like "Tea, Coffee, Milk" or "Roti, Rice"
+   that typically start each day's cell) to guess where one
+   day's text ends and the next begins. It's a best-effort guess,
+   not a guarantee — the admin still reviews every day before
+   saving, and nothing is written to the live site until they
+   click Save.
+--------------------------------------------------------- */
+if(typeof pdfjsLib !== 'undefined'){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+}
+const DAYS_MON_FIRST = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+async function extractPdfText(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = '';
+  for(let i=1; i<=pdf.numPages; i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it => it.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+function extractMealRow(block, label, nextLabels){
+  const m = block.match(new RegExp(label, 'i'));
+  if(!m) return '';
+  const start = m.index + m[0].length;
+  let end = block.length;
+  for(const nl of nextLabels){
+    const idx = block.slice(start).search(new RegExp(nl, 'i'));
+    if(idx !== -1){ end = start + idx; break; }
+  }
+  return block.slice(start, end).trim();
+}
+
+function sliceByAnchors(text, anchors){
+  const segs = [];
+  for(let i=0; i<anchors.length; i++){
+    const start = anchors[i].index;
+    const end = i+1 < anchors.length ? anchors[i+1].index : text.length;
+    segs.push(text.slice(start, end).replace(/\s+/g,' ').trim());
+  }
+  return segs;
+}
+
+function splitMealRow(rowText, dayCount){
+  let anchors = [...rowText.matchAll(/Tea,?\s*Coffee,?\s*Milk/gi)];
+  if(anchors.length === dayCount) return sliceByAnchors(rowText, anchors);
+  anchors = [...rowText.matchAll(/(Roti,\s*Rice|Rice,\s*Veg)/gi)];
+  if(anchors.length === dayCount) return sliceByAnchors(rowText, anchors);
+  anchors = [...rowText.matchAll(/\bRice,/gi)];
+  if(anchors.length === dayCount) return sliceByAnchors(rowText, anchors);
+  return null; // couldn't confidently split — caller falls back
+}
+
+function parseWeekBlock(block){
+  const breakfastRow = extractMealRow(block, 'Breakfast', ['Lunch']);
+  const lunchRow = extractMealRow(block, 'Lunch', ['Evening']);
+  const eveningRow = extractMealRow(block, 'Evening', ['Dinner']);
+  const dinnerRow = extractMealRow(block, 'Dinner', ['Menu items are subject', 'IIT TIRUPATI MESS MENU', 'Week\\s*2']);
+
+  const bfSegs = splitMealRow(breakfastRow, 7);
+  const lnSegs = splitMealRow(lunchRow, 7);
+  const evSegs = splitMealRow(eveningRow, 7) || Array(7).fill('Tea, Coffee, Milk');
+  const dnSegs = splitMealRow(dinnerRow, 7);
+
+  const weekObj = {};
+  DAYS_MON_FIRST.forEach((d,i)=>{
+    weekObj[d] = {
+      breakfast: bfSegs ? bfSegs[i] : '',
+      lunch: lnSegs ? lnSegs[i] : '',
+      tea: evSegs[i] || 'Tea, Coffee, Milk',
+      dinner: dnSegs ? dnSegs[i] : '',
+    };
+  });
+  // If a row couldn't be confidently split into 7 days, don't lose the
+  // text — drop the whole row into Monday's cell with a flag so the
+  // admin can see it and manually redistribute it across the week.
+  if(!bfSegs) weekObj.Monday.breakfast = '[Could not auto-split — redistribute manually]\n' + breakfastRow.replace(/\s+/g,' ').trim();
+  if(!lnSegs) weekObj.Monday.lunch = '[Could not auto-split — redistribute manually]\n' + lunchRow.replace(/\s+/g,' ').trim();
+  if(!dnSegs) weekObj.Monday.dinner = '[Could not auto-split — redistribute manually]\n' + dinnerRow.replace(/\s+/g,' ').trim();
+
+  const confident = !!bfSegs && !!lnSegs && !!dnSegs;
+  return { weekObj, confident };
+}
+
+function parseMessPdfText(fullText){
+  const splitIdx = fullText.search(/Week\s*2/i);
+  const week1Block = splitIdx === -1 ? fullText : fullText.slice(0, splitIdx);
+  const week2Block = splitIdx === -1 ? '' : fullText.slice(splitIdx);
+
+  const w1 = parseWeekBlock(week1Block);
+  const w2 = week2Block ? parseWeekBlock(week2Block) : null;
+  return {
+    week1: w1.weekObj, week1Confident: w1.confident,
+    week2: w2 ? w2.weekObj : null, week2Confident: w2 ? w2.confident : null,
+  };
+}
+
+const STOP_LABELS_BY_GROUP = {
+  weekday: ['South Gate', 'LHC', 'Malhar', 'LHC'],
+  weekend: ['Kedar', 'LHC', 'Malhar', 'LHC'],
+};
+const GROUP_LABELS = { weekday: 'Weekday', weekend: 'Weekend' };
+
+function blankTrip(){ return { type: 'Student Bus', stops:['', '', '', ''] }; }
+
+function todayScheduleGroup(){
+  const day = now().getDay();
+  return (day === 0 || day === 6) ? 'weekend' : 'weekday';
+}
 
 const DEFAULTS = {
-  mess: defaultMessMenu(),
-  transport: [
-    { stops:['08:00','08:08','08:18','08:28'] },
-    { stops:['13:00','13:08','13:18','13:28'] },
-    { stops:['19:00','19:08','19:18','19:28'] },
-  ],
+  mess: { week1: MESS_WEEK_1, week2: MESS_WEEK_2 },
+  messActiveWeek: 'week1',
+  transport: {
+    weekday: [
+      { type:'Student Bus', stops:['7:30','7:40','7:45','7:50'] },
+      { type:'Student Bus', stops:['8:10','8:20','8:25','8:30'] },
+      { type:'Student Bus', stops:['8:40','8:50','8:55','9:00'] },
+      { type:'Student Bus', stops:['9:30','9:40','9:45','9:50'] },
+      { type:'Student Bus', stops:['10:30','10:40','10:45','10:50'] },
+      { type:'Student Bus', stops:['11:30','11:40','11:45','11:50'] },
+      { type:'Staff Bus', stops:['12:00','12:10','12:15','12:20'] },
+      { type:'Staff Bus', stops:['12:50','13:00','13:05','13:10'] },
+      { type:'Student Bus', stops:['13:15','13:25','13:30','13:35'] },
+      { type:'Staff Bus', stops:['13:45','13:55','14:00','14:05'] },
+      { type:'Student Bus', stops:['14:30','14:40','14:45','14:50'] },
+      { type:'Student Bus', stops:['15:30','15:40','15:45','15:50'] },
+      { type:'Student Bus', stops:['16:20','16:30','16:35','16:40'] },
+      { type:'Student Bus', stops:['17:00','17:10','17:15','17:20'] },
+      { type:'Student Bus', stops:['18:00','18:10','18:15','18:20'] },
+    ],
+    weekend: [
+      { type:'Student Bus', stops:['8:40','8:50','8:55','9:00'] },
+      { type:'Student Bus', stops:['9:30','9:40','9:45','9:50'] },
+      { type:'Student Bus', stops:['12:15','12:25','12:30','12:35'] },
+      { type:'Student Bus', stops:['13:15','13:25','13:30','13:35'] },
+      { type:'Student Bus', stops:['16:30','16:40','16:45','16:50'] },
+      { type:'Student Bus', stops:['17:30','17:40','17:45','17:50'] },
+    ],
+  },
   events: [],
   notices: [],
   contacts: [
@@ -258,7 +490,7 @@ const DEFAULTS = {
   ],
 };
 
-let state = { mess:null, transport:null, events:null, notices:null, contacts:null };
+let state = { mess:null, messActiveWeek:'week1', transport:null, events:null, notices:null, contacts:null };
 let activeTab = 'home';
 let isAdmin = false;
 let authReady = false;
@@ -303,21 +535,32 @@ const firebaseConfig = {
   appId: "1:896343389381:web:7a3f01d6e003fb018cecac",
   measurementId: "G-7Z743WBP8D"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
+let firebaseAvailable = (typeof firebase !== 'undefined');
+if(firebaseAvailable){
+  try{
+    firebase.initializeApp(firebaseConfig);
+  }catch(e){
+    console.error('Firebase init failed', e);
+    firebaseAvailable = false;
+  }
+}
+const db = firebaseAvailable ? firebase.firestore() : null;
+const auth = firebaseAvailable ? firebase.auth() : null;
 const COLLECTION = 'iitt-hub';
 
-auth.onAuthStateChanged(user => {
-  isAdmin = !!user;
-  authReady = true;
-  if(activeTab === 'admin') { const c = document.getElementById('content'); if(c) { c.innerHTML = renderAdmin(); attachTabHandlers(); } }
-});
+if(firebaseAvailable){
+  auth.onAuthStateChanged(user => {
+    isAdmin = !!user;
+    authReady = true;
+    if(activeTab === 'admin') { const c = document.getElementById('content'); if(c) { c.innerHTML = renderAdmin(); attachTabHandlers(); } }
+  });
+}
 
 /* ---------------------------------------------------------
    STORAGE HELPERS (Firestore-backed, shared by everyone)
 --------------------------------------------------------- */
 async function loadKey(key, fallback){
+  if(!db) return fallback;
   try{
     const doc = await db.collection(COLLECTION).doc(key).get();
     if(doc.exists && doc.data() && doc.data().value) return JSON.parse(doc.data().value);
@@ -328,6 +571,7 @@ async function loadKey(key, fallback){
   }
 }
 async function saveKey(key, value){
+  if(!db) return false;
   try{
     await db.collection(COLLECTION).doc(key).set({ value: JSON.stringify(value), updatedAt: Date.now() });
     return true;
@@ -337,14 +581,15 @@ async function saveKey(key, value){
   }
 }
 async function loadAll(){
-  const [mess, transport, events, notices, contacts] = await Promise.all([
+  const [mess, messActiveWeek, transport, events, notices, contacts] = await Promise.all([
     loadKey('mess-menu', DEFAULTS.mess),
+    loadKey('mess-active-week', DEFAULTS.messActiveWeek),
     loadKey('transport-schedule', DEFAULTS.transport),
     loadKey('events-calendar', DEFAULTS.events),
     loadKey('notices-board', DEFAULTS.notices),
     loadKey('contacts-list', DEFAULTS.contacts),
   ]);
-  state = { mess, transport, events, notices, contacts };
+  state = { mess, messActiveWeek, transport, events, notices, contacts };
 }
 
 /* ---------------------------------------------------------
@@ -375,21 +620,23 @@ function parseTimeStr(t){
   const [h,m] = t.split(':').map(Number);
   return h*60 + (m||0);
 }
-function allStopEntries(){
-  // Flatten every trip's stops into {label, time, tripIndex, stopIndex}
+function allStopEntries(group){
+  const labels = STOP_LABELS_BY_GROUP[group];
   const entries = [];
-  (state.transport||[]).forEach((trip, ti) => {
+  (state.transport[group] || []).forEach((trip, ti) => {
     (trip.stops||[]).forEach((time, si) => {
-      if(time) entries.push({ label: STOP_LABELS[si], time, tripIndex: ti, stopIndex: si });
+      if(time) entries.push({ label: labels[si], time, type: trip.type || 'Student Bus', tripIndex: ti, stopIndex: si });
     });
   });
   return entries.sort((a,b)=>parseTimeStr(a.time)-parseTimeStr(b.time));
 }
 function nextTransport(){
+  const group = todayScheduleGroup();
   const mn = minutesNow();
-  const list = allStopEntries();
+  const list = allStopEntries(group);
   if(!list.length) return null;
-  return list.find(t => parseTimeStr(t.time) >= mn) || list[0];
+  const entry = list.find(t => parseTimeStr(t.time) >= mn) || list[0];
+  return { ...entry, group };
 }
 function todayEvents(){
   const todayStr = now().toISOString().slice(0,10);
@@ -462,7 +709,7 @@ function renderAll(){
 function renderHome(){
   const cm = currentMeal();
   const nm = nextMeal();
-  const menuToday = state.mess[todayName()] || {};
+  const menuToday = (state.mess[state.messActiveWeek] || {})[todayName()] || {};
   const nt = nextTransport();
   const evs = todayEvents();
   const notice = latestNotice();
@@ -499,7 +746,7 @@ function renderHome(){
       <div class="tile b" data-goto="transport">
         <div class="tile-icon">🚌</div>
         <div class="tile-title">Next Transport</div>
-        <div class="tile-body">${nt ? `${nt.label}<br>${nt.time}` : 'No schedule uploaded yet'}</div>
+        <div class="tile-body">${nt ? `${nt.type} · ${nt.label}<br>${nt.time}` : 'No schedule uploaded yet'}</div>
       </div>
       <div class="tile a" data-goto="events">
         <div class="tile-icon">📅</div>
@@ -525,14 +772,19 @@ function attachTabHandlers(){
    RENDER: MESS
 --------------------------------------------------------- */
 let selectedDay = todayName();
+let selectedViewWeek = null; // null = follow the admin-set active week
 function renderMess(){
-  const menu = state.mess[selectedDay] || {};
-  const isToday = selectedDay === todayName();
+  const viewWeek = selectedViewWeek || state.messActiveWeek;
+  const menu = (state.mess[viewWeek] || {})[selectedDay] || {};
+  const isToday = selectedDay === todayName() && viewWeek === state.messActiveWeek;
   const cm = currentMeal();
 
   return `
     <div class="card">
-      <div class="section-title">Weekly Mess Menu</div>
+      <div class="section-title">Mess Menu</div>
+      <div class="day-pills">
+        ${Object.keys(WEEK_LABELS).map(wk => `<button class="day-pill ${wk===viewWeek?'selected':''} ${wk===state.messActiveWeek?'today':''}" data-week="${wk}">${WEEK_LABELS[wk]}${wk===state.messActiveWeek?' · This week':''}</button>`).join('')}
+      </div>
       <div class="day-pills">
         ${DAYS.map(d => `<button class="day-pill ${d===todayName()?'today':''} ${d===selectedDay?'selected':''}" data-day="${d}">${d.slice(0,3)}${d===todayName()?' · Today':''}</button>`).join('')}
       </div>
@@ -554,25 +806,32 @@ function renderMess(){
 /* ---------------------------------------------------------
    RENDER: TRANSPORT
 --------------------------------------------------------- */
+let selectedTransportGroup = null; // null = follow today's actual schedule
 function renderTransport(){
-  const trips = state.transport || [];
+  const group = selectedTransportGroup || todayScheduleGroup();
+  const labels = STOP_LABELS_BY_GROUP[group];
+  const trips = state.transport[group] || [];
   const mn = minutesNow();
   const hasAny = trips.some(t => (t.stops||[]).some(s=>s));
   const nextEntry = nextTransport();
   return `
     <div class="card">
-      <div class="section-title">Intra-Campus Route · Kedar → LHC → Malhar → LHC</div>
+      <div class="section-title">Intra-Campus Route</div>
+      <div class="day-pills">
+        ${Object.keys(GROUP_LABELS).map(g => `<button class="day-pill ${g===group?'selected':''} ${g===todayScheduleGroup()?'today':''}" data-transportgroup="${g}">${GROUP_LABELS[g]}${g===todayScheduleGroup()?' · Today':''}</button>`).join('')}
+      </div>
+      <p class="muted" style="font-size:12px;margin:-4px 0 14px;">${labels.join(' → ')}</p>
       ${hasAny ? trips.map((trip, ti)=>{
         const anyTime = (trip.stops||[]).some(s=>s);
         if(!anyTime) return '';
         return `
         <div class="trip-block">
-          <div class="trip-label">Run ${ti+1}</div>
+          <div class="trip-label">${trip.type || 'Student Bus'}</div>
           <div class="trip-timeline">
-            ${STOP_LABELS.map((label, si)=>{
+            ${labels.map((label, si)=>{
               const time = trip.stops[si];
-              const passed = time && parseTimeStr(time) < mn;
-              const isNext = !!time && !!nextEntry && nextEntry.tripIndex===ti && nextEntry.stopIndex===si;
+              const passed = time && group===todayScheduleGroup() && parseTimeStr(time) < mn;
+              const isNext = !!time && !!nextEntry && nextEntry.group===group && nextEntry.tripIndex===ti && nextEntry.stopIndex===si;
               return `
               <div class="trip-stop ${passed?'passed':''} ${isNext?'next':''}">
                 <div class="ts-dot"></div>
@@ -582,7 +841,7 @@ function renderTransport(){
             }).join('<div class="ts-connector"></div>')}
           </div>
         </div>`;
-      }).join('') : '<div class="empty">No transport schedule uploaded yet.</div>'}
+      }).join('') : `<div class="empty">No ${GROUP_LABELS[group].toLowerCase()} schedule uploaded yet.</div>`}
     </div>
   `;
 }
@@ -656,6 +915,14 @@ function renderContacts(){
 --------------------------------------------------------- */
 let adminSection = 'mess';
 function renderAdmin(){
+  if(!firebaseAvailable){
+    return `
+      <div class="lock-screen">
+        <div class="section-title" style="text-align:center">Admin Unavailable</div>
+        <p class="muted" style="font-size:13.5px">Admin sign-in needs a resource that your browser just blocked (commonly an ad blocker or privacy extension treating "firebase" links as trackers). Disable it for this site, or try a different browser, then refresh the page.</p>
+      </div>
+    `;
+  }
   if(!isAdmin){
     return `
       <div class="lock-screen">
@@ -695,20 +962,38 @@ function renderAdminSection(){
   if(adminSection==='contacts') return renderAdminContacts();
 }
 
+let adminWeek = 'week1';
 function renderAdminMess(){
   return `
     <div class="card">
-      <div class="section-title">Edit Mess Menu — select a day</div>
+      <div class="section-title">Auto-fill from Mess Menu PDF</div>
+      <p class="muted" style="font-size:12.5px;margin-top:-6px;">Upload the mess committee's PDF (both weeks, same format as usual) and the fields below will be pre-filled automatically. This is best-effort text matching, not a guarantee — please check every day, especially Sundays or festival specials, before saving.</p>
+      <input type="file" id="messPdfInput" accept="application/pdf" />
+      <p id="pdfStatus" class="muted" style="font-size:12.5px;margin-top:10px;min-height:16px;"></p>
+    </div>
+    <div class="card">
+      <div class="section-title">Which week is currently active?</div>
+      <p class="muted" style="font-size:12.5px;margin-top:-6px;">This controls what shows on the Home screen and as "This week" for students. The mess rotates every 7 days, so flip this each week.</p>
+      <div class="day-pills">
+        ${Object.keys(WEEK_LABELS).map(wk => `<button class="day-pill ${wk===state.messActiveWeek?'selected today':''}" data-activeweek="${wk}">${WEEK_LABELS[wk]}${wk===state.messActiveWeek?' · Active':''}</button>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">Edit Mess Menu — select week and day</div>
+      <div class="day-pills">
+        ${Object.keys(WEEK_LABELS).map(wk => `<button class="day-pill ${wk===adminWeek?'selected':''}" data-adminweek="${wk}">${WEEK_LABELS[wk]}</button>`).join('')}
+      </div>
       <div class="day-pills">
         ${DAYS.map(d => `<button class="day-pill ${d===selectedDay?'selected':''} ${d===todayName()?'today':''}" data-adminday="${d}">${d.slice(0,3)}</button>`).join('')}
       </div>
       ${MEAL_WINDOWS.map(w=>`
         <div class="field">
           <label>${w.label} (${fmtTime(...w.start)}–${fmtTime(...w.end)})</label>
-          <textarea data-meal="${w.key}">${(state.mess[selectedDay]||{})[w.key]||''}</textarea>
+          <textarea data-meal="${w.key}">${((state.mess[adminWeek]||{})[selectedDay]||{})[w.key]||''}</textarea>
         </div>
       `).join('')}
-      <button class="btn" id="saveMess">Save ${selectedDay}'s menu</button>
+      <button class="btn" id="saveMess">Save ${WEEK_LABELS[adminWeek]} · ${selectedDay}</button>
+      <button class="btn secondary" id="saveAllMess" style="margin-left:8px;">Save entire menu (both weeks)</button>
     </div>
   `;
 }
@@ -827,6 +1112,10 @@ function attachTabHandlers(){
   document.querySelectorAll('[data-day]').forEach(el=>{
     el.addEventListener('click', ()=>{ selectedDay = el.dataset.day; document.getElementById('content').innerHTML = renderMess(); attachTabHandlers(); });
   });
+  // Mess week toggle (view — just browsing, doesn't change what's "active")
+  document.querySelectorAll('[data-week]').forEach(el=>{
+    el.addEventListener('click', ()=>{ selectedViewWeek = el.dataset.week; document.getElementById('content').innerHTML = renderMess(); attachTabHandlers(); });
+  });
 
   // Admin login
   const loginBtn = document.getElementById('adminLoginBtn');
@@ -861,14 +1150,62 @@ function attachTabHandlers(){
     el.addEventListener('click', ()=>{ selectedDay = el.dataset.adminday; document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers(); });
   });
 
+  // Admin mess week selector (which week you're editing)
+  document.querySelectorAll('[data-adminweek]').forEach(el=>{
+    el.addEventListener('click', ()=>{ adminWeek = el.dataset.adminweek; document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers(); });
+  });
+
+  // Admin: set which week is currently active (shown to students)
+  document.querySelectorAll('[data-activeweek]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      state.messActiveWeek = el.dataset.activeweek;
+      document.getElementById('adminContent').innerHTML = renderAdminSection(); attachTabHandlers();
+      const ok = await saveKey('mess-active-week', state.messActiveWeek);
+      showToast(ok ? `${WEEK_LABELS[state.messActiveWeek]} set as this week's menu` : 'Save failed, try again');
+    });
+  });
+
   const saveMessBtn = document.getElementById('saveMess');
   if(saveMessBtn) saveMessBtn.addEventListener('click', async ()=>{
     const textareas = document.querySelectorAll('[data-meal]');
-    const dayMenu = { ...(state.mess[selectedDay]||{}) };
+    const dayMenu = { ...((state.mess[adminWeek]||{})[selectedDay]||{}) };
     textareas.forEach(t => dayMenu[t.dataset.meal] = t.value);
-    state.mess[selectedDay] = dayMenu;
+    state.mess[adminWeek] = { ...(state.mess[adminWeek]||{}), [selectedDay]: dayMenu };
     const ok = await saveKey('mess-menu', state.mess);
-    showToast(ok ? `${selectedDay}'s menu saved` : 'Save failed, try again');
+    showToast(ok ? `${WEEK_LABELS[adminWeek]} · ${selectedDay} saved` : 'Save failed, try again');
+  });
+
+  const saveAllMessBtn = document.getElementById('saveAllMess');
+  if(saveAllMessBtn) saveAllMessBtn.addEventListener('click', async ()=>{
+    const ok = await saveKey('mess-menu', state.mess);
+    showToast(ok ? 'Entire mess menu saved' : 'Save failed, try again');
+  });
+
+  const pdfInput = document.getElementById('messPdfInput');
+  if(pdfInput) pdfInput.addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const statusEl = document.getElementById('pdfStatus');
+    statusEl.textContent = 'Reading PDF…';
+    try{
+      if(typeof pdfjsLib === 'undefined') throw new Error('pdf.js not loaded');
+      const text = await extractPdfText(file);
+      const parsed = parseMessPdfText(text);
+      state.mess.week1 = parsed.week1;
+      if(parsed.week2) state.mess.week2 = parsed.week2;
+      adminWeek = 'week1';
+      selectedDay = 'Monday';
+      const bothConfident = parsed.week1Confident && (parsed.week2 === null || parsed.week2Confident);
+      statusEl.textContent = bothConfident
+        ? 'Parsed successfully — please double-check each day below, then Save.'
+        : 'Parsed with some uncertainty in at least one meal row — please carefully review every day below before saving.';
+      document.getElementById('adminContent').innerHTML = renderAdminSection();
+      attachTabHandlers();
+      showToast('PDF read — review before saving');
+    }catch(err){
+      console.error('PDF parse error', err);
+      statusEl.textContent = 'Could not read this PDF automatically. Please enter the menu manually below, or try a different file.';
+    }
   });
 
   // Transport
@@ -952,6 +1289,14 @@ async function init(){
   setInterval(updateClock, 1000 * 15);
   await loadAll();
   renderAll();
+  if(!firebaseAvailable) renderBlockedBanner();
+}
+function renderBlockedBanner(){
+  const app = document.getElementById('app');
+  const banner = document.createElement('div');
+  banner.style.cssText = 'background:rgba(225,91,91,0.12);border:1px solid rgba(225,91,91,0.4);color:#f2b8b8;border-radius:12px;padding:12px 16px;font-size:13px;line-height:1.5;margin:0 0 6px;';
+  banner.innerHTML = `<strong>Some content may not load.</strong> Your browser (often an ad blocker or privacy extension) is blocking a resource this site needs for live updates and admin sign-in. You're seeing placeholder/default information. Try disabling ad-blocking for this site, or use a different browser, and refresh.`;
+  app.insertBefore(banner, app.firstChild);
 }
 init();
 </script>
